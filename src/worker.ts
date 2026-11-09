@@ -30,18 +30,30 @@ async function readAll(): Promise<Answer> {
   return { hosts: (await Promise.all([local, ...paired])) as Answer['hosts'] }
 }
 
+/** Hovering any entry lists the fullest agents, as many as Orca's 256 tooltip characters hold. */
+function rankingOf(rows: { host: string; s: Parameters<typeof share>[0] }[]): string {
+  const lines: string[] = []
+  for (const { host, s } of rows) {
+    const where = host === 'local' ? '' : ` · ${host}`
+    const compactions = s.compactions.count ? `, ${s.compactions.count} comp.` : ''
+    const line = `${contextText(s)}  ${shortName(s)}${where}${compactions}`
+    if ([...lines, line].join('\n').length > TOOLTIP_LIMIT) break
+    lines.push(line)
+  }
+  return lines.join('\n')
+}
+
 /** Three status bar entries, the three fullest agents, each coloured by its own share. Missing ones hide. */
 export function statusOf(answer: Answer) {
   const rows = answer.hosts.flatMap((h) => h.sessions.map((s) => ({ host: h.host, s })))
   rows.sort((a, b) => fullestFirst(a.s, b.s))
   if (rows.length === 0) return [{ text: 'No agents', tone: 'neutral', tooltip: 'Context Meter: no live agents', visible: true }]
-  return rows.slice(0, STATUS_ITEMS).map(({ host, s }) => {
+  const tooltip = rankingOf(rows)
+  return rows.slice(0, STATUS_ITEMS).map(({ s }) => {
     const fraction = share(s)
     const tone = (fraction ?? 0) >= DANGER_SHARE ? 'danger' : (fraction ?? 0) >= WARNING_SHARE ? 'warning' : 'neutral'
-    const where = host === 'local' ? '' : ` on ${host}`
     const text = `${fraction === null ? contextText(s) : `${Math.round(fraction * 100)}%`} ${shortName(s)}`
-    const tooltip = `${shortName(s)}${where}: ${contextText(s)}, ${s.compactions.count} compactions. Click for the full list.`
-    return { text: text.slice(0, 64), tone, tooltip: tooltip.slice(0, TOOLTIP_LIMIT), visible: true }
+    return { text: text.slice(0, 64), tone, tooltip, visible: true }
   })
 }
 

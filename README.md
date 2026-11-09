@@ -16,7 +16,8 @@ An [Orca](https://onorca.dev) plugin that shows how full each coding agent's con
   tie, more compactions come first.
 - **Compactions beside it.** An agent that keeps compacting stands out.
 - **Always in view.** The status bar shows the three fullest agents, such as `73% infra-31`, each yellow from
-  70% and red from 90%. Hover one for its details, click to show or hide the right sidebar with the full list.
+  70% and red from 90%. Hover any of them for the ranking of all agents, click to show or hide the right
+  sidebar with the full list.
 - **No setup.** Nothing to configure, nothing installed on other machines.
 
 It only reads. It counts no tokens (Orca's usage view already does) and stores nothing. While the plugin is
