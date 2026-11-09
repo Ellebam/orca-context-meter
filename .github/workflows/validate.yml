@@ -1,0 +1,48 @@
+# The checks Orca runs on this plugin, with Orca's own tooling from stablyai/orca: the strict manifest
+# validation the plugin directory and the catalogs run (`pnpm validate:plugin`, the same checks as
+# `orca plugin validate`), then the tests the way `orca plugin test` runs them. Orca's main branch, so a
+# rule Orca adds fails here before the catalog refuses a release tag.
+name: Validate
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: plugin
+      - uses: actions/checkout@v7
+        with:
+          repository: stablyai/orca
+          path: orca
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Install Orca's plugin tooling
+        working-directory: orca
+        # No install scripts: they download Electron and build native modules, which validation does not use.
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm build:packages
+      - name: Validate the plugin
+        working-directory: orca
+        run: pnpm validate:plugin "$GITHUB_WORKSPACE/plugin"
+      - name: Tests
+        working-directory: plugin
+        run: |
+          register="$GITHUB_WORKSPACE/orca/resources/plugins/declarative/orca-test-register.mjs"
+          ORCA_PLUGIN_TEST_ROOT="$PWD" node --enable-source-maps --import "file://$register" --test src/*.test.ts src/*.test.tsx

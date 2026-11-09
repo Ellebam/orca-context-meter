@@ -1,0 +1,7 @@
+{"type": "session_meta", "timestamp": "2026-01-01T00:00:00Z", "payload": {"id": "codex-sample", "cwd": "/work/sample-codex", "git": {"branch": "codex-branch"}, "base_instructions": {"text": "MESSAGE-TEXT-NEVER-OUTPUT"}}}
+{"type": "turn_context", "timestamp": "2026-01-01T00:00:01Z", "payload": {"model": "model-codex", "cwd": "/work/sample-codex"}}
+{"type": "response_item", "timestamp": "2026-01-01T00:00:02Z", "payload": {"type": "message", "content": [{"type": "input_text", "text": "MESSAGE-TEXT-NEVER-OUTPUT"}]}}
+{"type": "event_msg", "timestamp": "2026-01-01T00:00:03Z", "payload": {"type": "token_count", "info": {"last_token_usage": {"input_tokens": 2900, "cached_input_tokens": 2000, "output_tokens": 100, "total_tokens": 3000}, "model_context_window": 10000}}}
+{"type": "compacted", "timestamp": "2026-01-01T00:00:04Z", "payload": {"message": "MESSAGE-TEXT-NEVER-OUTPUT", "replacement_history": [{"text": "MESSAGE-TEXT-NEVER-OUTPUT"}]}}
+{"type": "event_msg", "timestamp": "2026-01-01T00:00:05Z", "payload": {"type": "token_count", "info": {"last_token_usage": {"input_tokens": 0, "cached_input_tokens": 0, "output_tokens": 0, "total_tokens": 900}, "model_context_window": 10000}}}
+{"type":"event_msg","payload":{"type":"token_count", BROKEN

@@ -1,0 +1,4 @@
+{"type": "session_meta", "timestamp": "2026-01-01T00:00:00Z", "payload": {"id": "codex-subagent", "thread_source": "subagent", "cwd": "/work/sample-codex", "git": {"branch": "codex-branch"}}}
+{"type": "session_meta", "timestamp": "2026-01-01T00:00:00Z", "payload": {"id": "codex-sample", "thread_source": "user", "cwd": "/work/sample-codex", "git": {"branch": "codex-branch"}}}
+{"type": "turn_context", "timestamp": "2026-01-01T00:00:01Z", "payload": {"model": "model-codex", "cwd": "/work/sample-codex"}}
+{"type": "event_msg", "timestamp": "2026-01-01T00:00:02Z", "payload": {"type": "token_count", "info": {"last_token_usage": {"total_tokens": 700}, "model_context_window": 10000}}}

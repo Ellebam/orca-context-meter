@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- Source of cover.png (1600x1000). The panel mirrors src/panel.tsx with the invented sessions of src/panel.check.ts. -->
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 1600px; height: 1000px; background: #121318; }
+  body { display: flex; align-items: center; gap: 80px; padding: 0 100px; box-sizing: border-box;
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif; color: #e8eaf0; }
+  .text { flex: 1; }
+  .icon { width: 112px; height: 112px; }
+  h1 { font-size: 84px; margin: 36px 0 20px; letter-spacing: -1.5px; }
+  p { font-size: 34px; line-height: 1.4; color: #aab0bd; margin: 0 0 28px; }
+  ul { list-style: none; padding: 0; margin: 0; font-size: 28px; line-height: 1.9; color: #cfd3dc; }
+  li span { color: #4fd1a5; margin-right: 14px; }
+  .panel { width: 640px; background: #1b1b1d; border: 1px solid #2c2d33; border-radius: 22px; padding: 30px 30px 26px;
+    box-sizing: border-box; box-shadow: 0 30px 80px rgba(0,0,0,.55); font-size: 25px; }
+  .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 26px; }
+  .top b { font-size: 30px; }
+  .top span { font-size: 25px; color: #e8eaf0; }
+  .row { display: flex; align-items: center; gap: 14px; height: 54px; }
+  .row img, .row .logo { width: 26px; height: 26px; flex: none; }
+  .name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .name i { font-style: normal; color: #8b8f99; }
+  .ctx { width: 190px; text-align: right; flex: none; }
+  .cmp { width: 70px; text-align: right; flex: none; }
+  .zero { color: #8b8f99; }
+  .head { color: #8b8f99; font-size: 19px; letter-spacing: .6px; height: 40px; border-bottom: 1px solid #2c2d33; margin-bottom: 8px; }
+</style>
+<div class="text">
+  <img class="icon" src="icon.png" alt="">
+  <h1>Context Meter</h1>
+  <p>How full every coding agent's context is, at a glance.</p>
+  <ul>
+    <li><span>●</span>Every agent in Orca's sidebar</li>
+    <li><span>●</span>Fullest context first, compactions beside it</li>
+    <li><span>●</span>Paired machines too, no setup</li>
+  </ul>
+</div>
+<div class="panel">
+  <div class="top"><b>Context Meter</b><span>Refresh</span></div>
+  <div class="row head"><div class="logo"></div><div class="name">AGENT</div><div class="ctx">CONTEXT</div><div class="cmp">COMP.</div></div>
+  <div class="row"><img src="openai.png" alt=""><div class="name">infra-31 <i>· build-box</i></div><div class="ctx">73% (731k)</div><div class="cmp">3</div></div>
+  <div class="row"><img src="openai.png" alt=""><div class="name">web-87</div><div class="ctx">51% (512k)</div><div class="cmp">1</div></div>
+  <div class="row"><img src="claude.png" alt=""><div class="name">api-142</div><div class="ctx">18% (184k)</div><div class="cmp zero">0</div></div>
+  <div class="row"><img src="openai.png" alt=""><div class="name">api-142 <i>· build-box</i></div><div class="ctx">14% (142k)</div><div class="cmp zero">0</div></div>
+  <div class="row"><img src="openai.png" alt=""><div class="name">docs</div><div class="ctx">10% (96k)</div><div class="cmp zero">0</div></div>
+  <div class="row"><img src="claude.png" alt=""><div class="name">mobile-23</div><div class="ctx">6% (61k)</div><div class="cmp">2</div></div>
+</div>

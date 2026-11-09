@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stablyai/orca/main/docs/schemas/plugins/orca-plugin.v2.schema.json",
+  "manifestVersion": 2,
+  "id": "context-meter",
+  "name": "Context Meter",
+  "version": "0.1.0",
+  "description": "How full each coding agent's context is: every live Claude Code and Codex agent in Orca's sidebar, on this machine and your paired Orcas, fullest first, with its compactions. No setup.",
+  "license": "MIT",
+  "author": {
+    "name": "Ellebam",
+    "url": "https://github.com/Ellebam"
+  },
+  "repository": "https://github.com/Ellebam/orca-context-meter",
+  "icon": "images/icon.png",
+  "cover": {
+    "path": "images/cover.png",
+    "alt": "The Context Meter panel: six agents, fullest context first, with each tool's logo, its context share and its compactions."
+  },
+  "engines": {
+    "orca": ">=1.4.248"
+  },
+  "execution": "trusted-worker",
+  "pluginApi": 1,
+  "main": "src/worker.ts",
+  "contributes": {
+    "panels": [
+      {
+        "id": "context-meter",
+        "title": "Context Meter",
+        "icon": "gauge",
+        "entry": "src/panel.tsx",
+        "ui": "components"
+      }
+    ]
+  },
+  "capabilities": []
+}
