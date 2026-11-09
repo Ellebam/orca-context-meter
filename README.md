@@ -15,8 +15,8 @@ An [Orca](https://onorca.dev) plugin that shows how full each coding agent's con
 - **Fullest first.** Context as a share of the window, with the token count in brackets, `51% (512k)`. On a
   tie, more compactions come first.
 - **Compactions beside it.** An agent that keeps compacting stands out.
-- **Always in view.** The status bar shows the fullest agent, `73% infra-31`, yellow from 70% and red from 90%.
-  Hover for the next ones, click to show or hide the right sidebar with the full list.
+- **Always in view.** The status bar shows the three fullest agents, such as `73% infra-31`, each yellow from
+  70% and red from 90%. Hover one for its details, click to show or hide the right sidebar with the full list.
 - **No setup.** Nothing to configure, nothing installed on other machines.
 
 It only reads. It counts no tokens (Orca's usage view already does) and stores nothing. While the plugin is

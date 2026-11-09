@@ -35,16 +35,31 @@
     "commands": [
       {
         "id": "toggle-sidebar",
-        "title": "Context Meter: Show or hide the right sidebar"
+        "title": "Context Meter: Show or hide the right sidebar",
+        "action": "sidebar.right.toggle"
       }
     ],
     "statusBarItems": [
       {
-        "id": "fullest",
-        "text": "Context",
+        "id": "agent-1",
+        "text": "Fullest agent",
         "icon": "gauge",
-        "tooltip": "Context Meter",
+        "tooltip": "Context Meter: fullest agent",
         "command": "toggle-sidebar"
+      },
+      {
+        "id": "agent-2",
+        "icon": "gauge",
+        "tooltip": "Context Meter: second fullest agent",
+        "command": "toggle-sidebar",
+        "text": "Second fullest agent"
+      },
+      {
+        "id": "agent-3",
+        "icon": "gauge",
+        "tooltip": "Context Meter: third fullest agent",
+        "command": "toggle-sidebar",
+        "text": "Third fullest agent"
       }
     ]
   },

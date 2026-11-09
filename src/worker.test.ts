@@ -6,23 +6,27 @@ function session(name: string, current: number, window: number | null, count: nu
   return { sessionId: name, name, workspace: name, context: { current, window }, compactions: { count } }
 }
 
-test('the status bar names the fullest agent, warns from 70% and alarms from 90%, and lists the next ones', () => {
-  const calm = statusOf({ hosts: [{ host: 'local', sessions: [session('docs', 96000, 1000000, 0)] }] })
-  assert.deepEqual([calm.text, calm.tone], ['10% docs', 'neutral'])
+test('the status bar shows the three fullest agents, each yellow from 70% and red from 90%', () => {
   const answer = {
     hosts: [
-      { host: 'local', sessions: [session('web-87-checkout', 720000, 1000000, 1), session('docs', 96000, 1000000, 0)] },
+      {
+        host: 'local',
+        sessions: [
+          session('web-87-checkout', 720000, 1000000, 1),
+          session('docs', 96000, 1000000, 0),
+          session('api-142-limits', 300000, 1000000, 0)
+        ]
+      },
       { host: 'build-box', sessions: [session('infra-31-backups', 931000, 1000000, 3)] }
     ]
   }
-  const alarm = statusOf(answer)
-  assert.deepEqual([alarm.text, alarm.tone], ['93% infra-31', 'danger'])
-  assert.deepEqual(alarm.tooltip.split('\n'), [
-    '93% (931k)  infra-31 · build-box  3 comp.',
-    '72% (720k)  web-87  1 comp.',
-    '10% (96k)  docs  0 comp.'
+  const items = statusOf(answer)
+  assert.deepEqual(items.map((item) => [item.text, item.tone]), [
+    ['93% infra-31', 'danger'],
+    ['72% web-87', 'warning'],
+    ['30% api-142', 'neutral']
   ])
-  const warn = statusOf({ hosts: [{ host: 'local', sessions: [session('web-87', 720000, 1000000, 0)] }] })
-  assert.equal(warn.tone, 'warning')
-  assert.equal(statusOf({ hosts: [{ host: 'local', sessions: [] }] }).text, 'No agents')
+  assert.equal(items[0].tooltip, 'infra-31 on build-box: 93% (931k), 3 compactions. Click for the full list.')
+  assert.equal(statusOf({ hosts: [{ host: 'local', sessions: [session('docs', 96000, 1000000, 0)] }] }).length, 1)
+  assert.equal(statusOf({ hosts: [{ host: 'local', sessions: [] }] })[0].text, 'No agents')
 })
