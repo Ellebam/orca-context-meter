@@ -31,6 +31,21 @@
         "entry": "src/panel.tsx",
         "ui": "components"
       }
+    ],
+    "commands": [
+      {
+        "id": "toggle-sidebar",
+        "title": "Context Meter: Show or hide the right sidebar"
+      }
+    ],
+    "statusBarItems": [
+      {
+        "id": "fullest",
+        "text": "Context",
+        "icon": "gauge",
+        "tooltip": "Context Meter",
+        "command": "toggle-sidebar"
+      }
     ]
   },
   "capabilities": []

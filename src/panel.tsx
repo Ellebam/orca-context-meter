@@ -14,6 +14,7 @@ import {
   Text,
   type PanelContext
 } from 'orca'
+import { contextText, fullestFirst, shortName } from './rank'
 
 const REFRESH_MS = 60000
 // Fixed widths keep the numbers in columns down the list.
@@ -22,7 +23,6 @@ const COMPACTIONS_WIDTH = 44
 const LOGO_SIZE = 16
 
 type Answer = Awaited<ReturnType<typeof plugin.request<'meter.read'>>>
-type Session = Answer['hosts'][number]['sessions'][number]
 const answer = atom<Answer | null>(null)
 const failure = atom<string | null>(null)
 
@@ -41,41 +41,9 @@ export function setup(ctx: PanelContext): void {
   void refresh()
 }
 
-function tokens(value: number | null): string {
-  return value === null ? '–' : `${Math.round(value / 1000)}k`
-}
-
-function share(s: Session): number | null {
-  const { current, window } = s.context
-  return current === null || !window ? null : current / window
-}
-
-/** Share of the window first, count in brackets; the count alone when the window is unknown. */
-function context(s: Session): string {
-  const fraction = share(s)
-  return fraction === null ? tokens(s.context.current) : `${Math.round(fraction * 100)}% (${tokens(s.context.current)})`
-}
-
-/** Fullest first, then most compactions, then most tokens. An unknown share sorts after a known one. */
-function fullestFirst(a: Session, b: Session): number {
-  const shareA = share(a) ?? -1
-  const shareB = share(b) ?? -1
-  return (
-    shareB - shareA ||
-    b.compactions.count - a.compactions.count ||
-    (b.context.current ?? 0) - (a.context.current ?? 0)
-  )
-}
-
 const LOGO: Record<string, { src: string; alt: string }> = {
   claude: { src: 'images/claude.png', alt: 'Claude Code' },
   codex: { src: 'images/openai.png', alt: 'Codex' }
-}
-
-/** Orca's workspace name up to its first number, e.g. `project-123-long-title` reads `project-123`. */
-function agent(s: Session): string {
-  const name = s.name ?? s.workspace
-  return name?.match(/^.*?-\d+(?=-|$)/)?.[0] ?? name ?? s.sessionId.slice(0, 8)
 }
 
 function Line(props: { logo: unknown; name: unknown; context: unknown; compactions: unknown }) {
@@ -141,11 +109,11 @@ export default function Panel() {
           }
           name={
             <Text truncate>
-              {agent(s)}
+              {shortName(s)}
               {host === 'local' ? null : <Text muted> · {host}</Text>}
             </Text>
           }
-          context={<Text>{context(s)}</Text>}
+          context={<Text>{contextText(s)}</Text>}
           compactions={<Text muted={s.compactions.count === 0}>{s.compactions.count}</Text>}
         />
       ))}
