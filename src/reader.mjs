@@ -34,8 +34,6 @@ const CLAUDE_SHORT = 200000
 // Only lines that can carry a figure are parsed; message text is never kept.
 const CLAUDE_HINTS = ['"usage"', 'compact_boundary']
 const CODEX_HINTS = ['"token_count"', '"compacted"', '"session_meta"', '"turn_context"']
-// Hermes keeps no per-turn log: its store holds the figures, so nothing is parsed from it.
-const HERMES_HINTS = []
 // Rough characters per token for the estimated size of a conversation; the source says `estimate`.
 const HERMES_CHARS_PER_TOKEN = 4
 // A pane's session is its newest one inside that worktree, so the window is generous on purpose.
@@ -125,9 +123,10 @@ function codexRecord(session, record) {
 
 const CLIENTS = {
   claude: { hints: CLAUDE_HINTS, apply: claudeRecord },
-  codex: { hints: CODEX_HINTS, apply: codexRecord },
-  hermes: { hints: HERMES_HINTS, apply: () => {} }
+  codex: { hints: CODEX_HINTS, apply: codexRecord }
 }
+// Hermes keeps no per-turn log — its own store holds the figures — so it is a client without a parser.
+const SUPPORTED = new Set([...Object.keys(CLIENTS), 'hermes'])
 
 function applyLine(entry, line) {
   const { hints, apply } = CLIENTS[entry.session.client]
@@ -214,7 +213,7 @@ export async function readSessions({ sinceSeconds = DAY_SECONDS, roots = default
   }
   const answer = await readLogs(recent, deadline)
   const cachePath = roots.hermes ? join(dirname(roots.hermes), 'models_dev_cache.json') : null
-  for (const row of await hermesStore(roots.hermes, sinceSeconds)) {
+  for (const row of (await hermesStore(roots.hermes, sinceSeconds)).filter(isOwn)) {
     answer.sessions.push(hermesSession(row, null, cachePath))
   }
   answer.sessions.sort((a, b) => String(b.lastActivity).localeCompare(String(a.lastActivity)))
@@ -270,7 +269,7 @@ export function agentsFrom(result) {
   return worktrees
     .filter((w) => w.isArchived !== true && typeof w.path === 'string' && w.path)
     .flatMap((w) => (Array.isArray(w.agents) ? w.agents : [])
-      .filter((agent) => CLIENTS[agent.agentType] && agent.hasLivePty === true && !agent.parentPaneKey)
+      .filter((agent) => SUPPORTED.has(agent.agentType) && agent.hasLivePty === true && !agent.parentPaneKey)
       .map((agent) => ({
         client: agent.agentType,
         path: w.path,
@@ -382,17 +381,21 @@ function hermesSession(row, name, cachePath) {
   }
 }
 
+/** A subagent runs inside a main session and a cron owns no pane: neither is an agent of the sidebar. */
+function isOwn(row) {
+  return !row.parent_session_id && row.source !== 'subagent'
+}
+
 // A cron or a chat adapter owns no pane, so only an interactive session can be a pane's own.
 const INTERACTIVE = new Set(['local', 'cli', 'tui', 'desktop', 'gui', 'oneshot'])
 
 /**
  * One row per Hermes pane: the newest session inside that worktree, taken, so no two panes share one.
- * A subagent runs inside a main session and a cron owns no pane: neither is an agent of the sidebar.
  */
 export function hermesSessions(rows, agents, cachePath) {
   const panes = agents.filter((agent) => agent.client === 'hermes')
   if (panes.length === 0) return []
-  const own = rows.filter((row) => !row.parent_session_id && row.source !== 'subagent')
+  const own = rows.filter(isOwn)
   const usable = own.some((row) => INTERACTIVE.has(row.source)) ? own.filter((row) => INTERACTIVE.has(row.source)) : own
   if (usable.length === 0) return unmeasured(panes)
   const taken = new Set()

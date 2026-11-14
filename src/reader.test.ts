@@ -76,20 +76,21 @@ test("Claude Code's window follows Orca's rule: [1m] or a bare first-party name 
   assert.deepEqual([by.bare, by.tagged, by.gateway, by['gateway-past-200k']], [1000000, 1000000, 200000, 1000000])
 })
 
-test("Orca's sidebar gives one agent per live main pane of Claude Code or Codex, with the workspace name", () => {
+test("Orca's sidebar gives one agent per live main pane of a supported client, with the workspace name", () => {
   const pane = (agentType: string, extra = {}) => ({ agentType, hasLivePty: true, parentPaneKey: null, ...extra })
   const result = {
     worktrees: [
       { path: '/w/api-12-fix', displayName: 'api-12-fix', agents: [pane('codex'), pane('codex', { parentPaneKey: 'p1' })] },
       { path: '/w/main', displayName: 'main-dispatcher', agents: [pane('claude'), pane('claude', { hasLivePty: false })] },
       { path: '/w/old', displayName: 'old', isArchived: true, agents: [pane('codex')] },
-      { path: '/w/other', agents: [pane('gemini'), pane('claude')] }
+      { path: '/w/other', agents: [pane('gemini'), pane('claude'), pane('hermes')] }
     ]
   }
   assert.deepEqual(agentsFrom(result), [
     { client: 'codex', path: '/w/api-12-fix', name: 'api-12-fix' },
     { client: 'claude', path: '/w/main', name: 'main-dispatcher' },
-    { client: 'claude', path: '/w/other', name: 'other' }
+    { client: 'claude', path: '/w/other', name: 'other' },
+    { client: 'hermes', path: '/w/other', name: 'other' }
   ])
   assert.deepEqual(agentsFrom(null), [])
   const [row] = unmeasured([{ client: 'codex', path: '/w/api-12-fix', name: 'api-12-fix' }])
