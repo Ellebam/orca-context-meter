@@ -3,7 +3,7 @@ export {}
 
 declare module 'orca' {
   type Session = {
-    client: 'claude' | 'codex'
+    client: 'claude' | 'codex' | 'hermes'
     sessionId: string
     model: string | null
     /** Orca's name for the workspace, in live mode. */

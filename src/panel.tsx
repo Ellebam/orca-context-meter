@@ -43,7 +43,9 @@ export function setup(ctx: PanelContext): void {
 
 const LOGO: Record<string, { src: string; alt: string }> = {
   claude: { src: 'images/claude.png', alt: 'Claude Code' },
-  codex: { src: 'images/openai.png', alt: 'Codex' }
+  codex: { src: 'images/openai.png', alt: 'Codex' },
+  // Hermes has no published mark: the plugin's own gauge, so the row still reads at 16px.
+  hermes: { src: 'images/icon.png', alt: 'Hermes' }
 }
 
 function Line(props: { logo: unknown; name: unknown; context: unknown; compactions: unknown }) {

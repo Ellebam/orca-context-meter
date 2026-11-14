@@ -5,7 +5,7 @@ import { appendFileSync, chmodSync, cpSync, mkdirSync, mkdtempSync, readFileSync
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { agentsFrom, readLive, readRemote, readSessions, unmeasured } from './reader.mjs'
+import { agentsFrom, hermesSessions, readLive, readRemote, readSessions, unmeasured } from './reader.mjs'
 
 const SAMPLES = fileURLToPath(new URL('../test-data', import.meta.url))
 const NEVER = 'MESSAGE-TEXT-NEVER-OUTPUT'
@@ -115,4 +115,37 @@ test('live mode shows each sidebar agent once, from its main session, never a su
     ['codex', 'no-logs-yet', 'no-logs-yet', null]
   ], 'a live agent without a log yet still has its row')
   assert.deepEqual((await readLive({ roots, agents: [] })).sessions, [], 'no live agent, no row')
+})
+
+test('a Hermes pane takes the newest session in its worktree, never a subagent or a cron', () => {
+  const row = (id: string, source: string, minutesAgo: number, extra = {}) => ({
+    id,
+    source,
+    cwd: '/work/app',
+    git_branch: null,
+    title: id,
+    last_activity_at: 1000 - minutesAgo * 60,
+    chars: 4000,
+    compactions: 0,
+    ...extra
+  })
+  const rows = [
+    row('h-cron', 'cron', 0),
+    row('h-sub', 'subagent', 1, { parent_session_id: 'h-main' }),
+    row('h-main', 'local', 2, { git_branch: 'feat/1', title: 'Refactor the checkout', chars: 6000, compactions: 1 }),
+    row('h-second', 'local', 3, { title: 'Second pane' })
+  ]
+  const panes = [
+    { client: 'hermes', path: '/work/app', name: 'app' },
+    { client: 'hermes', path: '/work/app', name: 'app' },
+    { client: 'hermes', path: '/work/elsewhere', name: 'elsewhere' }
+  ]
+  const sessions = hermesSessions(rows, panes, null)
+  assert.deepEqual(sessions.map((s) => s.name), ['Refactor the checkout', 'Second pane', 'elsewhere'])
+  assert.deepEqual(sessions.map((s) => s.sessionId), ['h-main', 'h-second', 'elsewhere'])
+  // About four characters per token, counted from the last compaction, and flagged as an estimate.
+  assert.deepEqual(sessions[0].context, { current: 1500, peak: 1500, window: null, source: 'estimate' })
+  assert.deepEqual([sessions[0].branch, sessions[0].compactions.count], ['feat/1', 1])
+  assert.deepEqual([sessions[2].context.current, sessions[2].compactions.count], [null, 0])
+  assert.deepEqual(hermesSessions(rows, [], null), [], 'no pane, no row')
 })
