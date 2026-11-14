@@ -4,7 +4,7 @@
   "id": "context-meter",
   "name": "Context Meter",
   "version": "0.1.0",
-  "description": "How full each coding agent's context is: every live Claude Code and Codex agent in Orca's sidebar, on this machine and your paired Orcas, fullest first, with its compactions. No setup.",
+  "description": "How full each coding agent's context is: every live Claude Code, Codex and Hermes agent in Orca's sidebar, on this machine and your paired Orcas, fullest first, with its compactions. Hermes sizes are estimated from the conversation. No setup.",
   "license": "MIT",
   "author": {
     "name": "Ellebam",

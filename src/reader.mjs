@@ -2,10 +2,10 @@
 // Totals stay with Orca's own usage view, so nothing here sums tokens or stores anything.
 // Dependency-free so the same file runs in the plugin worker, as a command and over SSH.
 import { spawn } from 'node:child_process'
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { open, readdir, readFile, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export const SCHEMA = 1
@@ -34,9 +34,18 @@ const CLAUDE_SHORT = 200000
 // Only lines that can carry a figure are parsed; message text is never kept.
 const CLAUDE_HINTS = ['"usage"', 'compact_boundary']
 const CODEX_HINTS = ['"token_count"', '"compacted"', '"session_meta"', '"turn_context"']
+// Rough characters per token for the estimated size of a conversation; the source says `estimate`.
+const HERMES_CHARS_PER_TOKEN = 4
+// A pane's session is its newest one inside that worktree, so the window is generous on purpose.
+const HERMES_SINCE_SECONDS = 30 * DAY_SECONDS
+const HERMES_ROWS = 400
 
 export function defaultRoots(home = homedir()) {
-  return { claude: join(home, '.claude', 'projects'), codex: join(home, '.codex', 'sessions') }
+  return {
+    claude: join(home, '.claude', 'projects'),
+    codex: join(home, '.codex', 'sessions'),
+    hermes: join(home, '.hermes', 'state.db')
+  }
 }
 
 function fresh(client, path) {
@@ -116,6 +125,8 @@ const CLIENTS = {
   claude: { hints: CLAUDE_HINTS, apply: claudeRecord },
   codex: { hints: CODEX_HINTS, apply: codexRecord }
 }
+// Hermes keeps no per-turn log — its own store holds the figures — so it is a client without a parser.
+const SUPPORTED = new Set([...Object.keys(CLIENTS), 'hermes'])
 
 function applyLine(entry, line) {
   const { hints, apply } = CLIENTS[entry.session.client]
@@ -201,6 +212,10 @@ export async function readSessions({ sinceSeconds = DAY_SECONDS, roots = default
     if (info?.isFile() && info.mtimeMs >= cutoff) recent.push({ client, log, info })
   }
   const answer = await readLogs(recent, deadline)
+  const cachePath = roots.hermes ? join(dirname(roots.hermes), 'models_dev_cache.json') : null
+  for (const row of (await hermesStore(roots.hermes, sinceSeconds)).filter(isOwn)) {
+    answer.sessions.push(hermesSession(row, null, cachePath))
+  }
   answer.sessions.sort((a, b) => String(b.lastActivity).localeCompare(String(a.lastActivity)))
   return answer
 }
@@ -254,7 +269,7 @@ export function agentsFrom(result) {
   return worktrees
     .filter((w) => w.isArchived !== true && typeof w.path === 'string' && w.path)
     .flatMap((w) => (Array.isArray(w.agents) ? w.agents : [])
-      .filter((agent) => CLIENTS[agent.agentType] && agent.hasLivePty === true && !agent.parentPaneKey)
+      .filter((agent) => SUPPORTED.has(agent.agentType) && agent.hasLivePty === true && !agent.parentPaneKey)
       .map((agent) => ({
         client: agent.agentType,
         path: w.path,
@@ -278,6 +293,128 @@ export async function pairedHosts() {
 /** Rows for agents whose logs cannot be read here, so they still show, with unknown figures. */
 export function unmeasured(agents) {
   return agents.map(({ client, path, name }) => ({ ...fresh(client, name), workspace: basename(path), name }))
+}
+
+/** The published window of a model id, from Hermes' own models.dev cache; null when it carries none. */
+const windows = new Map()
+const catalogs = new Map()
+
+/** The id without the aggregator prefix or the routing suffix: neither is part of the model's name. */
+function plainModel(model) {
+  return model.toLowerCase().split('/').pop().replace(/:[a-z0-9-]+$/, '')
+}
+
+function modelsCache(cachePath) {
+  if (catalogs.has(cachePath)) return catalogs.get(cachePath)
+  let models = []
+  try {
+    const cache = JSON.parse(readFileSync(cachePath, 'utf8'))
+    models = Object.values(cache ?? {}).flatMap((provider) => Object.entries(provider?.models ?? {}))
+  } catch {
+    models = []
+  }
+  catalogs.set(cachePath, models)
+  return models
+}
+
+function publishedWindow(model, cachePath) {
+  if (!model || !cachePath) return null
+  if (windows.has(model)) return windows.get(model)
+  const models = modelsCache(cachePath)
+  const exact = models.find(([id, entry]) => id === model && Number.isFinite(entry?.limit?.context))
+  let window = exact ? exact[1].limit.context : null
+  if (window === null) {
+    // Providers publish the same model under a prefix or a suffix and disagree on the number:
+    // the value most of them carry is the safest of the published ones.
+    const wanted = plainModel(model)
+    const counts = new Map()
+    for (const [id, entry] of models) {
+      const found = entry?.limit?.context
+      if (Number.isFinite(found) && plainModel(id) === wanted) counts.set(found, (counts.get(found) ?? 0) + 1)
+    }
+    window = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null
+  }
+  windows.set(model, window)
+  return window
+}
+
+/**
+ * Hermes' session store, read-only and one query deep: the figures and the title, never message text.
+ * `chars` counts from the last compaction onwards, which is what the model is actually carrying.
+ */
+async function hermesStore(dbPath, sinceSeconds) {
+  if (!dbPath || !existsSync(dbPath)) return []
+  const since = Math.floor(Date.now() / 1000) - sinceSeconds
+  const sql = [
+    'select id, source, parent_session_id, model, cwd, git_branch, title, last_activity_at,',
+    "  (select sum(length(coalesce(content, ''))) from messages m where m.session_id = s.id",
+    '    and m.id >= coalesce((select max(id) from messages where session_id = s.id and _compressed_summary = 1), 0)) as chars,',
+    '  (select count(*) from messages m where m.session_id = s.id and m._compressed_summary = 1) as compactions',
+    `from sessions s where s.last_activity_at >= ${since} and s.archived = 0`,
+    `order by s.last_activity_at desc limit ${HERMES_ROWS}`
+  ].join('\n')
+  const { code, stdout } = await run('sqlite3', ['-readonly', '-json', dbPath, sql], { deadlineMs: ORCA_DEADLINE_MS })
+  if (code !== 0 || !stdout.trim()) return []
+  try {
+    const rows = JSON.parse(stdout)
+    return Array.isArray(rows) ? rows : []
+  } catch {
+    return []
+  }
+}
+
+/** A store row as a session; the title is the name, because a folder repeats itself down the list. */
+function hermesSession(row, name, cachePath) {
+  const chars = Number.isFinite(row.chars) ? row.chars : null
+  const current = chars === null ? null : Math.round(chars / HERMES_CHARS_PER_TOKEN)
+  const title = typeof row.title === 'string' && row.title.trim() ? row.title.trim() : null
+  return {
+    client: 'hermes',
+    sessionId: typeof row.id === 'string' && row.id ? row.id : (name ?? 'hermes'),
+    model: typeof row.model === 'string' && row.model ? row.model : null,
+    ...(title && { name: title }),
+    workspace: typeof row.cwd === 'string' && row.cwd ? basename(row.cwd) : null,
+    branch: typeof row.git_branch === 'string' && row.git_branch ? row.git_branch : null,
+    lastActivity: Number.isFinite(row.last_activity_at) ? new Date(row.last_activity_at * 1000).toISOString() : null,
+    context: { current, peak: current, window: publishedWindow(row.model, cachePath), source: 'estimate' },
+    compactions: { count: Number.isFinite(row.compactions) ? row.compactions : 0, auto: 0, manual: 0 }
+  }
+}
+
+/** A subagent runs inside a main session and a cron owns no pane: neither is an agent of the sidebar. */
+function isOwn(row) {
+  return !row.parent_session_id && row.source !== 'subagent'
+}
+
+// A cron or a chat adapter owns no pane, so only an interactive session can be a pane's own.
+const INTERACTIVE = new Set(['local', 'cli', 'tui', 'desktop', 'gui', 'oneshot'])
+
+/**
+ * One row per Hermes pane: the newest session inside that worktree, taken, so no two panes share one.
+ */
+export function hermesSessions(rows, agents, cachePath) {
+  const panes = agents.filter((agent) => agent.client === 'hermes')
+  if (panes.length === 0) return []
+  const own = rows.filter(isOwn)
+  const usable = own.some((row) => INTERACTIVE.has(row.source)) ? own.filter((row) => INTERACTIVE.has(row.source)) : own
+  if (usable.length === 0) return unmeasured(panes)
+  const taken = new Set()
+  return panes.map(({ path, name }) => {
+    const row = usable.find((candidate) => !taken.has(candidate.id) && inside(candidate.cwd, path))
+    if (!row) return unmeasured([{ client: 'hermes', path, name }])[0]
+    taken.add(row.id)
+    return hermesSession(row, name, cachePath)
+  })
+}
+
+/** The same rows for the panes Orca lists, read from the store this machine keeps. */
+export async function hermesRows(agents, dbPath, { sinceSeconds = HERMES_SINCE_SECONDS } = {}) {
+  const panes = agents.filter((agent) => agent.client === 'hermes')
+  if (panes.length === 0) return []
+  const rows = await hermesStore(dbPath, sinceSeconds)
+  if (rows.length === 0) return unmeasured(panes)
+  const cachePath = dbPath ? join(dirname(dbPath), 'models_dev_cache.json') : null
+  return hermesSessions(rows, panes, cachePath)
 }
 
 /** The first record of a log, which names its folder and whether it is a subagent. Never changes. */
@@ -343,10 +480,13 @@ async function liveFiles(agents, roots) {
 }
 
 /** Sessions of the agents in Orca's sidebar; the last 24 hours when Orca cannot list them. */
-export async function readLive({ roots = defaultRoots(), agents } = {}) {
+export async function readLive({ roots = defaultRoots(), agents, sinceSeconds = DAY_SECONDS } = {}) {
   const live = agents ?? (await liveAgents())
-  if (!live) return { ...(await readSessions({ roots })), live: false }
-  return { ...(await readLogs(await liveFiles(live, roots), Date.now() + SCAN_DEADLINE_MS)), live: true }
+  if (!live) return { ...(await readSessions({ roots, sinceSeconds })), live: false }
+  const deadline = Date.now() + SCAN_DEADLINE_MS
+  const answer = await readLogs(await liveFiles(live.filter((agent) => agent.client !== 'hermes'), roots), deadline)
+  answer.sessions.push(...(await hermesRows(live, roots.hermes, { sinceSeconds: HERMES_SINCE_SECONDS })))
+  return { ...answer, live: true }
 }
 
 /** `~` and `~/...` are in the home folder. */
@@ -418,6 +558,7 @@ function parseArgs(argv) {
     else if (flag === '--ssh-config') args.sshConfig = value
     else if (flag === '--claude-root') args.roots.claude = value
     else if (flag === '--codex-root') args.roots.codex = value
+    else if (flag === '--hermes-root') args.roots.hermes = value
     else throw new Error(`unknown option ${flag}`)
   }
   if (!(args.sinceSeconds > 0)) throw new Error('--since needs a positive number of seconds')

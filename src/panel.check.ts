@@ -23,8 +23,10 @@ const hosts = [
     available: true,
     complete: true,
     sessions: [
+      session('hermes', '.hermes', 512000, 1048576, 0, 0),
       session('claude', 'api-142-rate-limits', 184000, 1000000, 0, 0),
       session('codex', 'web-87-checkout', 512000, 1000000, 1, 2),
+      session('hermes', 'neurored', 96000, 1048576, 2, 5),
       session('codex', 'docs', 96000, 1000000, 0, 9),
       session('claude', 'mobile-23-push', 61000, 1000000, 2, 26)
     ]

@@ -8,12 +8,16 @@
 
 An [Orca](https://onorca.dev) plugin that shows how full each coding agent's context is, at a glance.
 
-- **One row per agent in Orca's sidebar.** Every live Claude Code and Codex agent, idle ones included, on this
-  machine and on every Orca you have paired. Closed and sleeping agents, subagents and review threads stay out.
-  Each row carries its tool's logo and Orca's workspace name up to the first number, so `api-142-rate-limits`
-  reads `api-142`.
+- **One row per agent in Orca's sidebar.** Every live Claude Code, Codex and Hermes agent, idle ones included, on
+  this machine and on every Orca you have paired. Closed and sleeping agents, subagents and review threads stay
+  out. Each row carries its tool's logo and, for Claude Code and Codex, Orca's workspace name up to the first
+  number, so `api-142-rate-limits` reads `api-142`; a Hermes row carries its session title instead.
 - **Fullest first.** Context as a share of the window, with the token count in brackets, `51% (512k)`. On a
   tie, more compactions come first.
+- **Hermes counts the conversation.** Hermes keeps no per-turn usage figure, so its size is estimated from the
+  text of the session since the last compaction (about four characters per token) and shown as
+  `3% (48k)`. The window comes from Hermes' own models.dev cache when it has the model; without it the row
+  shows the token count alone.
 - **Compactions beside it.** An agent that keeps compacting stands out.
 - **Always in view.** The status bar shows the three fullest agents, such as `73% infra-31`, each yellow from
   70% and red from 90%. Hover any of them for the ranking of all agents, click to show or hide the right
